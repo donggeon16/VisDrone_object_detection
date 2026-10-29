@@ -4,6 +4,8 @@ from collections import Counter
 from PIL import Image, ImageDraw
 import hashlib
 import csv
+import imagehash
+from PIL import ImageOps
 
 """
 visdrone annotation analyze & image check
@@ -51,7 +53,6 @@ def analyze_annotation(mode):
                 size_counts[(category, check_size(area))] += 1
                 objects_per_image[file.stem] += 1
 
-    # 1. 전체 통계
     print(f"\n===== Dataset Summary ({mode}) =====")
     print(f"Total annotation files: {total_annotation_files}")
     print(f"Total annotation rows: {total_objects}")
@@ -62,7 +63,6 @@ def analyze_annotation(mode):
     for error in errors[:20]:
         print(error)
 
-    # 2. 클래스별 객체 개수
     print("\n===== Class Distribution =====")
 
     for category in range(1, 11):
@@ -71,7 +71,6 @@ def analyze_annotation(mode):
 
         print(f"{class_name:<20}: {count}")
 
-    # 3. 클래스별 객체 크기 분포
     print("\n===== Size Distribution =====")
 
     print(
@@ -99,7 +98,6 @@ def analyze_annotation(mode):
             f"{total:>10}"
         )
 
-    # 4. 이미지당 객체 수
     counts = list(objects_per_image.values())
 
     mean_count = sum(counts) / len(counts)
@@ -111,7 +109,6 @@ def analyze_annotation(mode):
     print(f"Min : {min_count}")
     print(f"Max : {max_count}")
 
-    # 5. 전체 객체 크기 분포
     print("\n===== Overall Size Distribution =====")
 
     for size in ("small", "medium", "large"):
@@ -227,6 +224,118 @@ def check_data_leakage():
     print(f"Duplicate image IDs: {len(overlap)}, image hashes: {len(overlap_hash)}")
 
 
+def calculate_phash(path):
+    with Image.open(path) as img:
+        return int(str(imagehash.phash(img, hash_size=8)), 16)
+        
+
+def check_scene_similarity(top_k=20, save=True):
+    train_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "images"
+    val_dir = BASE / "data" / "raw" / "VisDrone2019-DET-val" / "images"
+
+    train_files = sorted(train_dir.glob("*.jpg"))
+    val_files = sorted(val_dir.glob("*.jpg"))
+
+    if not train_files or not val_files:
+        raise FileNotFoundError("Train or Validation images not found")
+
+    train_hashes = [
+        (path, calculate_phash(path))
+        for path in train_files
+    ]
+
+    val_hashes = [
+        (path, calculate_phash(path))
+        for path in val_files
+    ]
+
+    candidates = []
+
+    for val_path, val_hash in val_hashes:
+        best_train_path = None
+        min_distance = float("inf")
+
+        for train_path, train_hash in train_hashes:
+            distance = (val_hash ^ train_hash).bit_count()
+
+            if distance < min_distance:
+                min_distance = distance
+                best_train_path = train_path
+
+        candidates.append((
+            min_distance,
+            best_train_path,
+            val_path
+        ))
+
+    candidates.sort(key=lambda item: item[0])
+    top_pairs = candidates[:top_k]
+
+    print("\n===== Scene Similarity Check =====")
+    print(f"Train images: {len(train_files)}")
+    print(f"Validation images: {len(val_files)}")
+    print(f"Compared pairs: {len(train_files) * len(val_files)}")
+
+    print(f"\n===== Top {len(top_pairs)} Similar Pairs =====")
+
+    for rank, (distance, train_path, val_path) in enumerate(
+        top_pairs, start=1
+    ):
+        print(
+            f"{rank:>2}. Distance={distance:>2} | "
+            f"Train={train_path.name} | "
+            f"Val={val_path.name}"
+        )
+
+    if save:
+        output_dir = BASE / "reports" / "scene_similarity"
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        for rank, (distance, train_path, val_path) in enumerate(
+            top_pairs, start=1
+        ):
+            with Image.open(train_path) as train_img, \
+                 Image.open(val_path) as val_img:
+
+                train_img = ImageOps.contain(
+                    train_img.convert("RGB"), (480, 300)
+                )
+                val_img = ImageOps.contain(
+                    val_img.convert("RGB"), (480, 300)
+                )
+
+                canvas = Image.new("RGB", (1000, 350), "white")
+                draw = ImageDraw.Draw(canvas)
+
+                canvas.paste(train_img, (10, 40))
+                canvas.paste(val_img, (510, 40))
+
+                draw.text(
+                    (10, 10),
+                    f"Train: {train_path.name}",
+                    fill="black"
+                )
+                draw.text(
+                    (510, 10),
+                    f"Val: {val_path.name}",
+                    fill="black"
+                )
+                draw.text(
+                    (10, 330),
+                    f"pHash Hamming Distance: {distance}",
+                    fill="black"
+                )
+
+                canvas.save(
+                    output_dir / f"similar_pair_{rank:02d}.jpg"
+                )
+
+        print(f"\nSaved comparison images to: {output_dir}")
+
+    return top_pairs
+
+
+
 def create_split_manifest():
     output_path = BASE / "data" / "splits" / "visdrone_det_split_manifest.csv"
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,7 +359,6 @@ def create_split_manifest():
         image_ids = {p.stem for p in images}
         annotation_ids = {p.stem for p in annotations}
 
-        # 이미지와 어노테이션 대응 검사
         if image_ids != annotation_ids:
             missing_annotations = image_ids - annotation_ids
             missing_images = annotation_ids - image_ids
@@ -261,7 +369,6 @@ def create_split_manifest():
                 f"Missing images: {sorted(missing_images)[:10]}"
             )
 
-        # 공식 Split 개수 검사
         if len(images) != expected_counts[mode]:
             raise ValueError(
                 f"{mode}: Expected {expected_counts[mode]} images, "
@@ -280,7 +387,6 @@ def create_split_manifest():
                 "annotation_path": annotation_path.relative_to(BASE).as_posix()
             })
 
-    # Train/Val 이미지 ID 중복 검사
     overlap = split_ids["train"] & split_ids["val"]
 
     if overlap:
@@ -288,7 +394,6 @@ def create_split_manifest():
             f"Train/Val duplicate IDs: {sorted(overlap)[:10]}"
         )
 
-    # CSV 저장
     fieldnames = [
         "split",
         "image_id",
@@ -301,7 +406,6 @@ def create_split_manifest():
         writer.writeheader()
         writer.writerows(rows)
 
-    # 저장된 CSV 다시 읽어서 검증
     with open(output_path, "r", newline="", encoding="utf-8") as f:
         saved_rows = list(csv.DictReader(f))
 
@@ -337,6 +441,7 @@ def main():
         check_images(mode, save = False)
     check_data_leakage()
     create_split_manifest()
+    check_scene_similarity(top_k=20, save=True)
 
 if __name__ == "__main__":
     main()
