@@ -16,8 +16,8 @@ def check_size(area):
     else:
         return "large"
 
-def anaylze_annotation():
-    annotation_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "annotations"
+def anaylze_annotation(mode):
+    annotation_dir = BASE / "data" / "raw" / f"VisDrone2019-DET-{mode}" / "annotations"
     files = sorted(annotation_dir.glob("*.txt"))
     if not files:
         raise FileNotFoundError(
@@ -124,18 +124,18 @@ def anaylze_annotation():
 
         print(f"{size:<10}: {count:>8} ({ratio:.2f}%)")
 
-def check_image():
-    output_dir = BASE / "reports" / "bbox_samples"
+def check_image(mode):
+    output_dir = BASE / "reports" / f"bbox_samples_{mode}"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    image_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "images"
+    image_dir = BASE / "data" / "raw" / f"VisDrone2019-DET-{mode}" / "images"
     images = sorted(image_dir.glob("*.jpg"))
     if not images:
         raise FileNotFoundError(
             f"No annotation files found: {image_dir}"
         )
     
-    annotation_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "annotations"
+    annotation_dir = BASE / "data" / "raw" / f"VisDrone2019-DET-{mode}" / "annotations"
     files = sorted(annotation_dir.glob("*.txt"))
     if not files:
         raise FileNotFoundError(
@@ -164,8 +164,8 @@ def check_image():
 
 
 def main():
-    # anaylze_annotation()
-    check_image()
+    anaylze_annotation("val")
+    # check_image("val")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,45 @@
+
+===== Dataset Summary =====
+Total annotation files: 6471
+Total annotation rows: 353547
+Total valid objects: 343204
+Excluded rows: 10343
+Total invalid annotations: 3
+0000293_03401_d_0000939.txt:130 - Invalid w=3 or h=0
+9999985_00000_d_0000020.txt:12 - Invalid w=4 or h=0
+9999999_00590_d_0000267.txt:89 - Invalid w=10 or h=0
+
+===== Class Distribution =====
+pedestrian          : 79337
+people              : 27059
+bicycle             : 10480
+car                 : 144866
+van                 : 24956
+truck               : 12875
+tricycle            : 4812
+awning-tricycle     : 3246
+bus                 : 5926
+motor               : 29647
+
+===== Size Distribution =====
+Class                    Small    Medium     Large     Total
+pedestrian               65233     13798       306     79337
+people                   23505      3455        99     27059
+bicycle                   7100      3253       127     10480
+car                      69801     63125     11940    144866
+van                      10737     11537      2682     24956
+truck                     3984      6724      2167     12875
+tricycle                  2178      2424       210      4812
+awning-tricycle           1365      1695       186      3246
+bus                       1657      3269      1000      5926
+motor                    21964      7416       267     29647
+
+===== Objects per Image =====
+Mean: 53.04
+Min : 1
+Max : 902
+
+===== Overall Size Distribution =====
+small     :   207524 (60.47%)
+medium    :   116696 (34.00%)
+large     :    18984 (5.53%)
