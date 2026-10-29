@@ -75,9 +75,9 @@ MVP에서는 전체 10개 클래스 중 선택한 2~3개 클래스로 학습 및
 
 | Target | Original Class ID | Model Class ID |
 |---|---|---|
-| TBD | TBD | TBD |
-| TBD | TBD | TBD |
-| 선택한 경우 TBD | TBD | TBD |
+| pedestrian | 1 | 0 |
+| car | 4 | 1 |
+| motor | 10 | 2 |
 
 원본 클래스 ID와 모델 내부 클래스 ID의 Mapping을 별도로 기록한다.
 

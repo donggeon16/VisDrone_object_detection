@@ -21,3 +21,9 @@ CLASSES = {
     10: "motor", 
     11: "others"
     }
+
+CLASS_MAPPING = {
+    1: 0,   # pedestrian
+    4: 1,   # car
+    10: 2   # motor
+}
