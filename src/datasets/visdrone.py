@@ -51,14 +51,14 @@ def preprocess_annotation(annotation_path):
             bbox_xyxy = (x, y, x + w, y + h)
             area = w * h
 
-            answer.append([
-                category,
-                bbox_xyxy,
-                area,
-                score,
-                truncation,
-                occlusion
-            ])
+            answer.append({
+                "category": category,
+                "bbox": bbox_xyxy,
+                "area": area,
+                "score": score,
+                "truncation": truncation,
+                "occlusion": occlusion
+            })
 
     return answer
 
