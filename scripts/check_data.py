@@ -16,7 +16,7 @@ def check_size(area):
     else:
         return "large"
 
-def anaylze_annotation(mode):
+def analyze_annotation(mode):
     annotation_dir = BASE / "data" / "raw" / f"VisDrone2019-DET-{mode}" / "annotations"
     files = sorted(annotation_dir.glob("*.txt"))
     if not files:
@@ -124,9 +124,7 @@ def anaylze_annotation(mode):
 
         print(f"{size:<10}: {count:>8} ({ratio:.2f}%)")
 
-def check_image(mode):
-    output_dir = BASE / "reports" / f"bbox_samples_{mode}"
-    output_dir.mkdir(parents=True, exist_ok=True)
+def check_images(mode, save = False):
 
     image_dir = BASE / "data" / "raw" / f"VisDrone2019-DET-{mode}" / "images"
     images = sorted(image_dir.glob("*.jpg"))
@@ -144,28 +142,70 @@ def check_image(mode):
 
     errors = []
 
-    for image_path in images[:20]:
+    if save:
+        output_dir = BASE / "reports" / f"bbox_samples_{mode}"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        for image_path in images[:20]:
+
+            file = annotation_dir / f"{image_path.stem}.txt"
+            if not file.is_file():
+                raise FileNotFoundError(
+                    f"Missing annotation: {file.name}"
+                )
+            objects = preprocess_annotation(file, errors=errors)
+            image = Image.open(image_path).convert("RGB")
+            draw = ImageDraw.Draw(image)
+
+            for obj in objects:
+                if obj["score"] == 1:
+                    draw.rectangle(obj["bbox"], outline="red", width=2)
+                    draw.text((
+                        obj["bbox"][0], 
+                        obj["bbox"][1]),
+                        CLASSES[obj["category"]],
+                        fill="yellow"
+                    )
+            image.save(output_dir / image_path.name)
+        errors = []
+
+    bbox_errors = []
+
+    for image_path in images:
 
         file = annotation_dir / f"{image_path.stem}.txt"
+        if not file.is_file():
+            raise FileNotFoundError(
+                f"Missing annotation: {file.name}"
+            )
         objects = preprocess_annotation(file, errors=errors)
-        image = Image.open(image_path).convert("RGB")
-        draw = ImageDraw.Draw(image)
+        with Image.open(image_path) as image:
+            img_w, img_h = image.size
 
         for obj in objects:
-            if obj["score"] == 1:
-                draw.rectangle(obj["bbox"], outline="red", width=2)
-                draw.text((
-                    obj["bbox"][0], 
-                    obj["bbox"][1]),
-                    CLASSES[obj["category"]],
-                    fill="yellow"
-                )
-        image.save(output_dir / image_path.name)
+            x1, y1, x2, y2 = obj["bbox"]
+            if not (0 <= x1 < x2 <= img_w and 0 <= y1 < y2 <= img_h):
+                bbox_errors.append({
+                    "file": image_path.name,
+                    "bbox": obj["bbox"],
+                    "image_size": (img_w, img_h),
+                    "category": obj["category"],
+                    "score": obj["score"],
+                    "truncation": obj["truncation"]
+                })
+
+    print(f"\n===== Image Integrity ({mode}) =====")
+    print(f"Total images: {len(images)}")
+    print(f"Invalid annotation rows: {len(errors)}")
+    print(f"Out-of-bounds boxes: {len(bbox_errors)}")
+
+    for error in bbox_errors[:20]:
+        print(error)
 
 
 def main():
-    anaylze_annotation("val")
-    # check_image("val")
+    mode = "val"
+    # analyze_annotation(mode)
+    check_images(mode)
 
 if __name__ == "__main__":
     main()
