@@ -14,7 +14,9 @@ def preprocess_annotation(annotation_path, errors=None):
 
             try:
                 # 필드 개수 검사
-                values = line.split(",")
+                values = line.strip().split(",")
+                if len(values) == 9 and values[-1] == "":
+                    values.pop()
 
                 if len(values) != 8:
                     raise ValueError(
@@ -52,7 +54,7 @@ def preprocess_annotation(annotation_path, errors=None):
                 })
 
             except ValueError as e:
-                message = f"{annotation_path}:{line_num} - {e}"
+                message = f"{annotation_path.name}:{line_num} - {e}"
 
                 if errors is None:
                     raise ValueError(message) from e
