@@ -1,9 +1,10 @@
 from src.utils.constants import BASE, CLASSES
 from src.datasets.visdrone import preprocess_annotation
 from collections import Counter
+from PIL import Image, ImageDraw
 
 """
-visdrone annotation analyze & check
+visdrone annotation analyze & image check
 
 """
 
@@ -15,7 +16,7 @@ def check_size(area):
     else:
         return "large"
 
-def main():
+def anaylze_annotation():
     annotation_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "annotations"
     files = sorted(annotation_dir.glob("*.txt"))
     if not files:
@@ -123,7 +124,48 @@ def main():
 
         print(f"{size:<10}: {count:>8} ({ratio:.2f}%)")
 
+def check_image():
+    output_dir = BASE / "reports" / "bbox_samples"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
+    image_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "images"
+    images = sorted(image_dir.glob("*.jpg"))
+    if not images:
+        raise FileNotFoundError(
+            f"No annotation files found: {image_dir}"
+        )
+    
+    annotation_dir = BASE / "data" / "raw" / "VisDrone2019-DET-train" / "annotations"
+    files = sorted(annotation_dir.glob("*.txt"))
+    if not files:
+        raise FileNotFoundError(
+            f"No annotation files found: {annotation_dir}"
+        )
+
+    errors = []
+
+    for image_path in images[:20]:
+
+        file = annotation_dir / f"{image_path.stem}.txt"
+        objects = preprocess_annotation(file, errors=errors)
+        image = Image.open(image_path).convert("RGB")
+        draw = ImageDraw.Draw(image)
+
+        for obj in objects:
+            if obj["score"] == 1:
+                draw.rectangle(obj["bbox"], outline="red", width=2)
+                draw.text((
+                    obj["bbox"][0], 
+                    obj["bbox"][1]),
+                    CLASSES[obj["category"]],
+                    fill="yellow"
+                )
+        image.save(output_dir / image_path.name)
+
+
+def main():
+    # anaylze_annotation()
+    check_image()
 
 if __name__ == "__main__":
     main()
